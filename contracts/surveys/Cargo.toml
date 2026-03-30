@@ -1,0 +1,21 @@
+[package]
+name = "surveys"
+version.workspace = true
+edition.workspace = true
+description = "Decentralized survey contract — stores survey and response CIDs from Bulletin Chain"
+authors.workspace = true
+homepage.workspace = true
+
+[lib]
+path = "lib.rs"
+
+[[bin]]
+name = "surveys"
+path = "lib.rs"
+
+[dependencies]
+cdm = { workspace = true }
+pvm_contract = { workspace = true }
+polkavm-derive = { workspace = true }
+parity-scale-codec = { workspace = true }
+picoalloc = { workspace = true }

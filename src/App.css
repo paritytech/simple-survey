@@ -1,0 +1,219 @@
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #000; --surface: #111; --surface2: #1a1a1a;
+  --border: #222; --text: #f5f5f5; --text2: #888;
+  --accent: #6366f1; --accent-hover: #4f46e5;
+  --success: #22c55e; --danger: #ef4444;
+  --radius: 12px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100dvh;
+}
+
+#root { max-width: 520px; margin: 0 auto; }
+
+/* -- Shell -- */
+header {
+  position: sticky; top: 0; z-index: 10;
+  background: var(--bg); border-bottom: 1px solid var(--border);
+  padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
+}
+header h1 { font-size: 20px; font-weight: 600; }
+
+.account-select {
+  background: var(--surface); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 10px; font-size: 13px; cursor: pointer;
+  outline: none;
+}
+.account-select:focus { border-color: var(--accent); }
+
+/* -- Tabs -- */
+.tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  position: sticky; top: 53px; z-index: 9; background: var(--bg);
+}
+.tabs button {
+  flex: 1; padding: 12px; background: none; border: none; color: var(--text2);
+  font-size: 14px; font-weight: 500; cursor: pointer; position: relative;
+}
+.tabs button.active { color: var(--text); }
+.tabs button.active::after {
+  content: ""; position: absolute; bottom: 0; left: 20%; right: 20%;
+  height: 2px; background: var(--accent); border-radius: 1px;
+}
+
+/* -- Survey list -- */
+.survey-card {
+  border-bottom: 1px solid var(--border); padding: 16px;
+  cursor: pointer; transition: background 0.1s;
+}
+.survey-card:hover { background: var(--surface); }
+.survey-card-header {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 8px;
+}
+.survey-card-title { font-size: 16px; font-weight: 600; flex: 1; }
+.survey-card-meta { font-size: 12px; color: var(--text2); }
+.survey-card-desc { font-size: 13px; color: var(--text2); line-height: 1.4; margin-bottom: 8px; }
+.survey-card-footer {
+  display: flex; gap: 12px; font-size: 12px; color: var(--text2);
+}
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: var(--surface2); padding: 3px 8px; border-radius: 6px;
+}
+
+/* -- Fill survey -- */
+.survey-fill { padding: 16px; }
+.survey-fill h2 { font-size: 18px; margin-bottom: 4px; }
+.survey-fill-desc { font-size: 13px; color: var(--text2); margin-bottom: 20px; }
+
+.question-block { margin-bottom: 20px; }
+.question-text { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+
+.option-label {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin-bottom: 6px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; cursor: pointer; font-size: 14px;
+  transition: all 0.15s;
+}
+.option-label:hover { border-color: var(--accent); }
+.option-label.selected {
+  border-color: var(--accent); background: rgba(99, 102, 241, 0.1);
+}
+.option-label input[type="radio"] { display: none; }
+.radio-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  border: 2px solid var(--border); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.option-label.selected .radio-dot { border-color: var(--accent); }
+.option-label.selected .radio-dot::after {
+  content: ""; width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent);
+}
+
+/* -- Results -- */
+.results { padding: 16px; }
+.results h2 { font-size: 18px; margin-bottom: 16px; }
+.results-question { margin-bottom: 20px; }
+.results-question-text { font-size: 15px; font-weight: 500; margin-bottom: 10px; }
+
+.result-bar {
+  display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+}
+.result-label { font-size: 13px; min-width: 100px; }
+.result-track {
+  flex: 1; height: 24px; background: var(--surface2); border-radius: 6px;
+  overflow: hidden; position: relative;
+}
+.result-fill {
+  height: 100%; background: var(--accent); border-radius: 6px;
+  transition: width 0.5s ease;
+  min-width: 2px;
+}
+.result-pct {
+  font-size: 12px; color: var(--text2); min-width: 40px; text-align: right;
+}
+.result-count {
+  font-size: 11px; color: var(--text2); text-align: center; margin-top: 4px;
+}
+
+/* -- Create survey modal -- */
+.fab {
+  position: fixed; bottom: 24px; right: max(24px, calc(50% - 236px));
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--accent); color: white; border: none;
+  font-size: 26px; cursor: pointer; box-shadow: 0 4px 20px rgba(99,102,241,.4);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s;
+}
+.fab:hover { transform: scale(1.08); }
+
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.7); z-index: 20;
+  display: flex; align-items: flex-end; justify-content: center;
+}
+.modal {
+  background: var(--surface); border-radius: var(--radius) var(--radius) 0 0;
+  width: 100%; max-width: 520px; padding: 20px;
+  max-height: 85vh; overflow-y: auto;
+}
+.modal h2 { font-size: 18px; margin-bottom: 16px; }
+.modal input, .modal textarea {
+  width: 100%; background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-size: 14px; margin-bottom: 12px;
+  font-family: inherit; resize: vertical; outline: none;
+}
+.modal input:focus, .modal textarea:focus { border-color: var(--accent); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+.btn {
+  padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.15s;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-ghost { background: none; color: var(--text2); }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-danger:hover { opacity: 0.85; }
+
+/* -- Question builder -- */
+.question-builder {
+  border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px; margin-bottom: 12px;
+}
+.question-builder-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.question-builder-header span { font-size: 13px; color: var(--text2); font-weight: 500; }
+.option-row {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+}
+.option-row input { flex: 1; margin-bottom: 0; }
+.remove-btn {
+  background: none; border: none; color: var(--danger); cursor: pointer;
+  font-size: 18px; padding: 4px;
+}
+.add-option-btn {
+  background: none; border: none; color: var(--accent);
+  cursor: pointer; font-size: 13px; padding: 4px 0;
+}
+.add-question-btn {
+  width: 100%; padding: 10px; background: var(--surface2); color: var(--text2);
+  border: 1px dashed var(--border); border-radius: 8px;
+  cursor: pointer; font-size: 13px; margin-bottom: 12px;
+}
+.add-question-btn:hover { border-color: var(--accent); color: var(--text); }
+
+/* -- Back button -- */
+.back-btn {
+  background: none; border: none; color: var(--accent);
+  cursor: pointer; font-size: 14px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 4px;
+}
+.back-btn:hover { opacity: 0.8; }
+
+/* -- States -- */
+.status { font-size: 13px; color: var(--text2); margin-bottom: 12px; }
+.empty {
+  text-align: center; padding: 48px 16px; color: var(--text2); font-size: 14px;
+  line-height: 1.6;
+}
+.spinner {
+  display: flex; justify-content: center; padding: 24px;
+  color: var(--text2); font-size: 13px;
+}
+.sentinel { height: 1px; }
+.already-responded {
+  text-align: center; padding: 24px; color: var(--success);
+  font-size: 14px; font-weight: 500;
+}
