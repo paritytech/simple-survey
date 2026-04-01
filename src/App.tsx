@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { createCdm } from "@dotdm/cdm";
-import { BulletinClient, computeCid } from "@polkadot-apps/bulletin";
-import { isInsideContainer } from "@polkadot-apps/signer";
+import { BulletinClient } from "@polkadot-apps/bulletin";
 import { useSignerState, signerManager, short, IPFS_GATEWAY } from "./utils.ts";
 import type { SurveyData, ResponseData, SurveyListItem } from "./types.ts";
 import cdmJson from "../cdm.json";
@@ -52,19 +51,10 @@ async function ensureMapping(account: { address: string; getSigner: () => any })
     }
 }
 
-async function uploadToBulletin(bytes: Uint8Array, signer: any): Promise<string> {
-    if (isInsideContainer()) {
-        // Host handles signing + chain connection via preimage API
-        const cid = computeCid(bytes);
-        console.log("[Bulletin] Uploading via preimage API, CID:", cid);
-        const { preimageManager } = await import("@novasamatech/product-sdk");
-        await preimageManager.submit(bytes);
-        console.log("[Bulletin] Preimage submitted");
-        return cid;
-    }
-    // Standalone: direct bulletin upload with signer
+async function uploadToBulletin(bytes: Uint8Array): Promise<string> {
     const client = await getBulletinClient();
-    const result = await client.upload(bytes, signer);
+    // BulletinClient auto-resolves: preimage in host container, dev signer standalone
+    const result = await client.upload(bytes);
     console.log("[Bulletin] Upload complete. CID:", result.cid);
     return result.cid;
 }
@@ -326,7 +316,7 @@ function FillSurvey({ surveyId, account, onDone }: {
 
             setStatusMsg("Uploading response to Bulletin...");
             const bytes = new TextEncoder().encode(JSON.stringify(responseData));
-            const responseCid = await uploadToBulletin(bytes, account.getSigner());
+            const responseCid = await uploadToBulletin(bytes);
             console.log("[FillSurvey] Bulletin upload complete. CID:", responseCid);
 
             setStatusMsg("Ensuring account is mapped...");
@@ -585,7 +575,7 @@ function CreateSurvey({ account, onCreated }: {
 
             setStatusMsg("Uploading survey to Bulletin...");
             const bytes = new TextEncoder().encode(JSON.stringify(surveyData));
-            const cid = await uploadToBulletin(bytes, account.getSigner());
+            const cid = await uploadToBulletin(bytes);
             console.log("[CreateSurvey] Bulletin upload complete. CID:", cid);
 
             setStatusMsg("Ensuring account is mapped...");
