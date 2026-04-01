@@ -1,36 +1,87 @@
-import {
-    useState, useEffect, useMemo, useCallback, useRef, type ReactNode,
-} from "react";
+import { useState, useEffect } from "react";
 import { createCdm } from "@dotdm/cdm";
-import { FixedSizeBinary } from "polkadot-api";
-import {
-    ACCOUNTS, deriveWallet, short, publishBlob, IPFS_GATEWAY,
-    type Wallet,
-} from "./utils.ts";
-import type { SurveyData, ResponseData, SurveyListItem, Question } from "./types.ts";
+import { BulletinClient } from "@polkadot-apps/bulletin";
+import { useSignerState, signerManager, short, IPFS_GATEWAY } from "./utils.ts";
+import type { SurveyData, ResponseData, SurveyListItem } from "./types.ts";
 import cdmJson from "../cdm.json";
 
 // ---------------------------------------------------------------------------
-// CDM — one connection for the lifetime of the page
+// CDM + Bulletin — identical pattern to playground-app
 // ---------------------------------------------------------------------------
 
 const cdm = createCdm(cdmJson);
-const sv = cdm.getContract("@example/surveys");
+const sv = cdm.getContract("@example/surveys") as any;
 
-const toBytes = (hex: string) => FixedSizeBinary.fromHex(hex);
+let _bulletinClient: BulletinClient | null = null;
+async function getBulletinClient() {
+    if (!_bulletinClient) _bulletinClient = await BulletinClient.create("paseo");
+    return _bulletinClient;
+}
+
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    return Promise.race([
+        promise,
+        new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+        ),
+    ]);
+}
+
+const _mappedAccounts = new Set<string>();
+
+async function ensureMapping(account: { address: string; getSigner: () => any }) {
+    if (_mappedAccounts.has(account.address)) return;
+    try {
+        const checker = cdm.inkSdk;
+        const mapped = await checker.addressIsMapped(account.address);
+        if (mapped) {
+            console.log("[Mapping] Account already mapped:", account.address);
+            _mappedAccounts.add(account.address);
+            return;
+        }
+        console.log("[Mapping] Mapping account:", account.address);
+        const api = cdm.client.getUnsafeApi() as any;
+        const tx = api.tx.Revive.map_account();
+        await tx.signAndSubmit(account.getSigner());
+        console.log("[Mapping] Account mapped successfully");
+        _mappedAccounts.add(account.address);
+    } catch (err) {
+        console.warn("[Mapping] Error:", err);
+        // Don't throw — let the contract call try anyway, it might work
+    }
+}
+
+async function uploadToBulletin(bytes: Uint8Array): Promise<string> {
+    const client = await getBulletinClient();
+    // BulletinClient auto-resolves: preimage in host container, dev signer standalone
+    const result = await client.upload(bytes);
+    console.log("[Bulletin] Upload complete. CID:", result.cid);
+    return result.cid;
+}
 
 // ---------------------------------------------------------------------------
 // App
 // ---------------------------------------------------------------------------
 
 export default function App() {
-    const [accountIdx, setAccountIdx] = useState(0);
-    const wallet = useMemo<Wallet>(() => deriveWallet(ACCOUNTS[accountIdx].mnemonic), [accountIdx]);
-    const me = ACCOUNTS[accountIdx].ethAddress;
+    const { status, accounts, selectedAccount, error } = useSignerState();
 
+    // Auto-connect on mount
     useEffect(() => {
-        cdm.setDefaults({ origin: wallet.address, signer: wallet.signer });
-    }, [wallet]);
+        console.log("[Signer] Connecting...");
+        signerManager.connect().then(result => {
+            if (result.ok) {
+                console.log("[Signer] Connected!", result.value.length, "accounts");
+                if (result.value.length > 0) {
+                    signerManager.selectAccount(result.value[0].address);
+                }
+            } else {
+                console.warn("[Signer] Connect failed:", result.error);
+            }
+        });
+    }, []);
+
+    const account = selectedAccount;
 
     const [view, setView] = useState<
         | { page: "list" }
@@ -41,17 +92,29 @@ export default function App() {
     const [refreshKey, setRefreshKey] = useState(0);
     const refresh = () => setRefreshKey(k => k + 1);
 
+    if (status === "connecting") {
+        return <div className="spinner">Connecting wallet...</div>;
+    }
+
     return (
         <>
             <header>
                 <h1>Surveys</h1>
-                <select
-                    className="account-select"
-                    value={accountIdx}
-                    onChange={e => setAccountIdx(Number(e.target.value))}
-                >
-                    {ACCOUNTS.map((a, i) => <option key={i} value={i}>{a.name}</option>)}
-                </select>
+                {accounts.length > 0 ? (
+                    <select
+                        className="account-select"
+                        value={account?.address ?? ""}
+                        onChange={e => signerManager.selectAccount(e.target.value)}
+                    >
+                        {accounts.map(acc => (
+                            <option key={acc.address} value={acc.address}>
+                                {acc.name ?? short(acc.address)} ({acc.source})
+                            </option>
+                        ))}
+                    </select>
+                ) : (
+                    <span className="account-select">{error?.message ?? "No accounts"}</span>
+                )}
             </header>
 
             {view.page !== "list" && (
@@ -68,11 +131,10 @@ export default function App() {
                 />
             )}
 
-            {view.page === "fill" && (
+            {view.page === "fill" && account && (
                 <FillSurvey
                     surveyId={view.surveyId}
-                    wallet={wallet}
-                    me={me}
+                    account={account}
                     onDone={() => { refresh(); setView({ page: "list" }); }}
                 />
             )}
@@ -81,15 +143,15 @@ export default function App() {
                 <SurveyResults surveyId={view.surveyId} />
             )}
 
-            {view.page === "list" && (
-                <CreateSurvey wallet={wallet} onCreated={refresh} />
+            {view.page === "list" && account && (
+                <CreateSurvey account={account} onCreated={refresh} />
             )}
         </>
     );
 }
 
 // ---------------------------------------------------------------------------
-// Survey List
+// Survey List — queries use CDM .query() (no origin needed, CDM defaults)
 // ---------------------------------------------------------------------------
 
 function SurveyList({ onFill, onResults }: {
@@ -112,7 +174,6 @@ function SurveyList({ onFill, onResults }: {
                 const items: SurveyListItem[] = [];
                 for (let i = count - 1; i >= 0; i--) {
                     if (cancelled) return;
-                    console.log("[SurveyList] Fetching survey #%d from contract...", i);
                     const [cidRes, creatorRes, respRes] = await Promise.all([
                         sv.getSurveyCid.query(BigInt(i)),
                         sv.getSurveyCreator.query(BigInt(i)),
@@ -124,19 +185,13 @@ function SurveyList({ onFill, onResults }: {
                         ? "0x" + [...creatorRes.value.asBytes()].map((b: number) => b.toString(16).padStart(2, "0")).join("")
                         : "";
                     const responseCount = respRes.success ? Number(respRes.value) : 0;
-                    console.log("[SurveyList] Survey #%d — CID: %s, creator: %s, responses: %d", i, cid, short(creator), responseCount);
 
                     const item: SurveyListItem = { id: i, cid, creator, responseCount };
 
-                    // Fetch survey data from Bulletin
                     if (cid) {
                         try {
-                            console.log("[SurveyList] Fetching survey #%d data from Bulletin: %s", i, IPFS_GATEWAY + cid);
                             const resp = await fetch(IPFS_GATEWAY + cid);
-                            if (resp.ok) {
-                                item.data = await resp.json();
-                                console.log("[SurveyList] Survey #%d data loaded: \"%s\"", i, item.data?.title);
-                            }
+                            if (resp.ok) item.data = await resp.json();
                         } catch { /* gateway might be slow */ }
                     }
 
@@ -195,13 +250,12 @@ function SurveyList({ onFill, onResults }: {
 }
 
 // ---------------------------------------------------------------------------
-// Fill Survey
+// Fill Survey — uses CDM .tx() with { signer, origin } like playground-app
 // ---------------------------------------------------------------------------
 
-function FillSurvey({ surveyId, wallet, me, onDone }: {
+function FillSurvey({ surveyId, account, onDone }: {
     surveyId: number;
-    wallet: Wallet;
-    me: string;
+    account: { address: string; h160Address: string; getSigner: () => any };
     onDone: () => void;
 }) {
     const [survey, setSurvey] = useState<SurveyData | null>(null);
@@ -209,19 +263,17 @@ function FillSurvey({ surveyId, wallet, me, onDone }: {
     const [alreadyResponded, setAlreadyResponded] = useState(false);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
-    const [status, setStatus] = useState("");
+    const [statusMsg, setStatusMsg] = useState("");
 
     useEffect(() => {
         let cancelled = false;
         (async () => {
             try {
-                // Check if already responded
-                const hasRes = await sv.hasResponded.query(BigInt(surveyId), toBytes(me));
+                const hasRes = await sv.hasResponded.query(BigInt(surveyId), account.h160Address);
                 if (!cancelled && hasRes.success && hasRes.value) {
                     setAlreadyResponded(true);
                 }
 
-                // Fetch survey data
                 const cidRes = await sv.getSurveyCid.query(BigInt(surveyId));
                 if (!cidRes.success || cancelled) return;
 
@@ -238,7 +290,7 @@ function FillSurvey({ surveyId, wallet, me, onDone }: {
             }
         })();
         return () => { cancelled = true; };
-    }, [surveyId, me]);
+    }, [surveyId, account.address]);
 
     const selectOption = (qIdx: number, oIdx: number) => {
         setAnswers(prev => {
@@ -262,23 +314,31 @@ function FillSurvey({ surveyId, wallet, me, onDone }: {
 
             console.log("[FillSurvey] Response data:", responseData);
 
-            setStatus("Uploading response to Bulletin...");
+            setStatusMsg("Uploading response to Bulletin...");
             const bytes = new TextEncoder().encode(JSON.stringify(responseData));
-            console.log("[FillSurvey] Uploading response to Bulletin Chain (%d bytes)...", bytes.length);
-            const responseCid = await publishBlob(bytes, wallet.signer);
-            console.log("[FillSurvey] Bulletin upload complete. Response CID:", responseCid);
-            console.log("[FillSurvey] Gateway URL:", IPFS_GATEWAY + responseCid);
+            const responseCid = await uploadToBulletin(bytes);
+            console.log("[FillSurvey] Bulletin upload complete. CID:", responseCid);
 
-            setStatus("Submitting response on-chain...");
-            console.log("[FillSurvey] Calling contract submitResponse(surveyId=%d, cid=%s)...", surveyId, responseCid);
-            const txResult = await sv.submitResponse.tx(BigInt(surveyId), responseCid);
-            console.log("[FillSurvey] Contract tx result:", txResult);
-            console.log("[FillSurvey] Response submitted successfully!");
+            setStatusMsg("Ensuring account is mapped...");
+            await ensureMapping(account);
+
+            setStatusMsg("Submitting response on-chain...");
+            console.log("[FillSurvey] Calling submitResponse.tx...");
+            const txResult = await withTimeout(
+                sv.submitResponse.tx(
+                    BigInt(surveyId),
+                    responseCid,
+                    { signer: account.getSigner(), origin: account.address },
+                ),
+                120_000,
+                "submitResponse.tx",
+            );
+            console.log("[FillSurvey] Response submitted!", txResult);
 
             onDone();
         } catch (err) {
             console.error("Submit response error:", err);
-            setStatus("Failed — check console");
+            setStatusMsg("Failed — check console");
         } finally {
             setSubmitting(false);
         }
@@ -313,7 +373,7 @@ function FillSurvey({ surveyId, wallet, me, onDone }: {
                 </div>
             ))}
 
-            {status && <div className="status">{status}</div>}
+            {statusMsg && <div className="status">{statusMsg}</div>}
 
             <button
                 className="btn btn-primary"
@@ -341,44 +401,30 @@ function SurveyResults({ surveyId }: { surveyId: number }) {
         let cancelled = false;
         (async () => {
             try {
-                // Fetch survey data
-                console.log("[Results] Querying contract for survey #%d CID...", surveyId);
                 const cidRes = await sv.getSurveyCid.query(BigInt(surveyId));
                 if (!cidRes.success || cancelled) return;
-                console.log("[Results] Survey CID:", cidRes.value);
 
-                console.log("[Results] Fetching survey data from Bulletin: %s", IPFS_GATEWAY + cidRes.value);
                 const resp = await fetch(IPFS_GATEWAY + cidRes.value);
                 if (!resp.ok || cancelled) return;
                 const data: SurveyData = await resp.json();
-                console.log("[Results] Survey data loaded:", data.title);
                 setSurvey(data);
 
-                // Fetch response count
-                console.log("[Results] Querying contract for response count...");
                 const countRes = await sv.getResponseCount.query(BigInt(surveyId));
                 if (!countRes.success || cancelled) return;
                 const count = Number(countRes.value);
-                console.log("[Results] Total responses on-chain:", count);
                 setTotalResponses(count);
 
-                // Initialize tallies: [question][option] = count
                 const t: number[][] = data.questions.map(q => new Array(q.options.length).fill(0));
 
-                // Fetch all responses and aggregate
                 for (let i = 0; i < count; i++) {
                     if (cancelled) return;
-                    console.log("[Results] Fetching response #%d CID from contract...", i);
                     const rCidRes = await sv.getResponseCid.query(BigInt(surveyId), BigInt(i));
                     if (!rCidRes.success) continue;
-                    console.log("[Results] Response #%d CID:", i, rCidRes.value);
 
                     try {
-                        console.log("[Results] Fetching response #%d data from Bulletin: %s", i, IPFS_GATEWAY + rCidRes.value);
                         const rResp = await fetch(IPFS_GATEWAY + rCidRes.value);
                         if (!rResp.ok) continue;
                         const rData: ResponseData = await rResp.json();
-                        console.log("[Results] Response #%d answers:", i, rData.answers);
 
                         rData.answers.forEach((optIdx, qIdx) => {
                             if (qIdx < t.length && optIdx >= 0 && optIdx < t[qIdx].length) {
@@ -388,7 +434,6 @@ function SurveyResults({ surveyId }: { surveyId: number }) {
                     } catch { /* skip malformed responses */ }
                 }
 
-                console.log("[Results] Final tallies:", t);
                 if (!cancelled) setTallies(t);
             } catch (err) {
                 console.error("Failed to load results:", err);
@@ -444,14 +489,17 @@ interface QuestionDraft {
     options: string[];
 }
 
-function CreateSurvey({ wallet, onCreated }: { wallet: Wallet; onCreated: () => void }) {
+function CreateSurvey({ account, onCreated }: {
+    account: { address: string; getSigner: () => any };
+    onCreated: () => void;
+}) {
     const [open, setOpen] = useState(false);
     const [title, setTitle] = useState("");
     const [description, setDescription] = useState("");
     const [questions, setQuestions] = useState<QuestionDraft[]>([
         { text: "", options: ["", ""] },
     ]);
-    const [status, setStatus] = useState("");
+    const [statusMsg, setStatusMsg] = useState("");
     const [busy, setBusy] = useState(false);
 
     const updateQuestion = (qi: number, text: string) => {
@@ -506,7 +554,7 @@ function CreateSurvey({ wallet, onCreated }: { wallet: Wallet; onCreated: () => 
         setTitle("");
         setDescription("");
         setQuestions([{ text: "", options: ["", ""] }]);
-        setStatus("");
+        setStatusMsg("");
     };
 
     const submit = async () => {
@@ -525,25 +573,32 @@ function CreateSurvey({ wallet, onCreated }: { wallet: Wallet; onCreated: () => 
 
             console.log("[CreateSurvey] Survey data:", surveyData);
 
-            setStatus("Uploading survey to Bulletin...");
+            setStatusMsg("Uploading survey to Bulletin...");
             const bytes = new TextEncoder().encode(JSON.stringify(surveyData));
-            console.log("[CreateSurvey] Uploading to Bulletin Chain (%d bytes)...", bytes.length);
-            const cid = await publishBlob(bytes, wallet.signer);
+            const cid = await uploadToBulletin(bytes);
             console.log("[CreateSurvey] Bulletin upload complete. CID:", cid);
-            console.log("[CreateSurvey] Gateway URL:", IPFS_GATEWAY + cid);
 
-            setStatus("Creating survey on-chain...");
-            console.log("[CreateSurvey] Calling contract createSurvey(cid=%s)...", cid);
-            const txResult = await sv.createSurvey.tx(cid);
-            console.log("[CreateSurvey] Contract tx result:", txResult);
-            console.log("[CreateSurvey] Survey created successfully!");
+            setStatusMsg("Ensuring account is mapped...");
+            await ensureMapping(account);
+
+            setStatusMsg("Creating survey on-chain...");
+            console.log("[CreateSurvey] Calling createSurvey.tx...");
+            const txResult = await withTimeout(
+                sv.createSurvey.tx(
+                    cid,
+                    { signer: account.getSigner(), origin: account.address },
+                ),
+                120_000,
+                "createSurvey.tx",
+            );
+            console.log("[CreateSurvey] Survey created!", txResult);
 
             reset();
             setOpen(false);
             onCreated();
         } catch (err) {
             console.error("Create survey error:", err);
-            setStatus("Failed — check console");
+            setStatusMsg("Failed — check console");
         } finally {
             setBusy(false);
         }
@@ -617,7 +672,7 @@ function CreateSurvey({ wallet, onCreated }: { wallet: Wallet; onCreated: () => 
                             + Add question
                         </button>
 
-                        {status && <div className="status">{status}</div>}
+                        {statusMsg && <div className="status">{statusMsg}</div>}
 
                         <div className="modal-actions">
                             <button
