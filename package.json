@@ -8,8 +8,7 @@
     "build:frontend": "tsc -b && vite build",
     "build:contracts": "cdm build",
     "deploy": "cdm deploy -n paseo",
-    "preview": "vite preview",
-    "postinstall": "papi"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@dotdm/cdm": "latest",
