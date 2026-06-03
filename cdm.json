@@ -1,167 +1,219 @@
 {
-  "targets": {
-    "acc2c3b5e912b762": {
-      "asset-hub": "wss://asset-hub-paseo-rpc.n.dwellir.com",
-      "bulletin": "https://paseo-ipfs.polkadot.io/ipfs"
-    }
-  },
+  "targets": {},
   "dependencies": {
-    "acc2c3b5e912b762": {
-      "@example/surveys": "latest"
-    }
+    "@example/surveys": "latest"
   },
   "contracts": {
-    "acc2c3b5e912b762": {
-      "@example/surveys": {
-        "version": 0,
-        "address": "0x5820BA961763C7744E1e612446A54C34302adf0B",
-        "abi": [
-          {
-            "type": "constructor",
-            "inputs": [],
-            "stateMutability": "nonpayable"
-          },
-          {
-            "type": "function",
-            "name": "createSurvey",
-            "inputs": [
-              {
-                "name": "cid",
-                "type": "string"
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "uint64"
-              }
-            ],
-            "stateMutability": "view"
-          },
-          {
-            "type": "function",
-            "name": "submitResponse",
-            "inputs": [
-              {
-                "name": "survey_id",
-                "type": "uint64"
-              },
-              {
-                "name": "response_cid",
-                "type": "string"
-              }
-            ],
-            "outputs": [],
-            "stateMutability": "nonpayable"
-          },
-          {
-            "type": "function",
-            "name": "getSurveyCount",
-            "inputs": [],
-            "outputs": [
-              {
-                "name": "",
-                "type": "uint64"
-              }
-            ],
-            "stateMutability": "view"
-          },
-          {
-            "type": "function",
-            "name": "getSurveyCid",
-            "inputs": [
-              {
-                "name": "survey_id",
-                "type": "uint64"
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "string"
-              }
-            ],
-            "stateMutability": "view"
-          },
-          {
-            "type": "function",
-            "name": "getSurveyCreator",
-            "inputs": [
-              {
-                "name": "survey_id",
-                "type": "uint64"
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "bytes20"
-              }
-            ],
-            "stateMutability": "view"
-          },
-          {
-            "type": "function",
-            "name": "getResponseCount",
-            "inputs": [
-              {
-                "name": "survey_id",
-                "type": "uint64"
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "uint64"
-              }
-            ],
-            "stateMutability": "view"
-          },
-          {
-            "type": "function",
-            "name": "getResponseCid",
-            "inputs": [
-              {
-                "name": "survey_id",
-                "type": "uint64"
-              },
-              {
-                "name": "index",
-                "type": "uint64"
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "string"
-              }
-            ],
-            "stateMutability": "view"
-          },
-          {
-            "type": "function",
-            "name": "hasResponded",
-            "inputs": [
-              {
-                "name": "survey_id",
-                "type": "uint64"
-              },
-              {
-                "name": "user",
-                "type": "bytes20"
-              }
-            ],
-            "outputs": [
-              {
-                "name": "",
-                "type": "bool"
-              }
-            ],
-            "stateMutability": "view"
-          }
-        ],
-        "metadataCid": "bafk2bzacec6idlg65mm5ekgyfqbpv6xhhz47qytkir7oz3u5tdijkx5w3l32a"
-      }
+    "@example/surveys": {
+      "version": 0,
+      "address": "0x3DA8017c2FE4767b343774FD210A60465A7cFe80",
+      "abi": [
+        {
+          "inputs": [],
+          "stateMutability": "nonpayable",
+          "type": "constructor"
+        },
+        {
+          "inputs": [
+            {
+              "name": "cid",
+              "type": "string"
+            }
+          ],
+          "name": "createSurvey",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "survey_id",
+              "type": "uint64"
+            },
+            {
+              "name": "response_cid",
+              "type": "string"
+            }
+          ],
+          "name": "submitResponse",
+          "outputs": [],
+          "stateMutability": "nonpayable",
+          "type": "function"
+        },
+        {
+          "inputs": [],
+          "name": "getSurveyCount",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "survey_id",
+              "type": "uint64"
+            }
+          ],
+          "name": "getSurveyCid",
+          "outputs": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "survey_id",
+              "type": "uint64"
+            }
+          ],
+          "name": "getSurveyCreator",
+          "outputs": [
+            {
+              "name": "",
+              "type": "address"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "survey_id",
+              "type": "uint64"
+            }
+          ],
+          "name": "getResponseCount",
+          "outputs": [
+            {
+              "name": "",
+              "type": "uint64"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "survey_id",
+              "type": "uint64"
+            },
+            {
+              "name": "index",
+              "type": "uint64"
+            }
+          ],
+          "name": "getResponseCid",
+          "outputs": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "survey_id",
+              "type": "uint64"
+            },
+            {
+              "name": "user",
+              "type": "address"
+            }
+          ],
+          "name": "hasResponded",
+          "outputs": [
+            {
+              "name": "",
+              "type": "bool"
+            }
+          ],
+          "stateMutability": "view",
+          "type": "function"
+        },
+        {
+          "inputs": [
+            {
+              "name": "",
+              "type": "uint256"
+            }
+          ],
+          "name": "Panic",
+          "type": "error"
+        },
+        {
+          "inputs": [
+            {
+              "name": "",
+              "type": "string"
+            }
+          ],
+          "name": "Error",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "SurveyNotFound",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "ResponseNotFound",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "AlreadyResponded",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "InvalidCalldata",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "CalldataTooLarge",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NoSelector",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "UnknownSelector",
+          "type": "error"
+        },
+        {
+          "inputs": [],
+          "name": "NonPayableValueReceived",
+          "type": "error"
+        }
+      ],
+      "metadataCid": "bafk2bzacedxv27bk22zfjo5oeyyklzusrztrmjvkchddkerjgofbh2v54svv2"
     }
-  }
+  },
+  "registry": "0xf62c2ece29cd8df2e10040ecfa5a894a5c5d9cb0"
 }
