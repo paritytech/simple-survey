@@ -5,6 +5,7 @@ edition.workspace = true
 description = "Decentralized survey contract — stores survey and response CIDs from Bulletin Chain"
 authors.workspace = true
 homepage.workspace = true
+license.workspace = true
 
 [lib]
 path = "lib.rs"

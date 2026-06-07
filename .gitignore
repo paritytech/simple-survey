@@ -1,3 +1,14 @@
+# Secrets / environment (the .env trap: *.local does NOT cover a bare .env)
+.env*
+!.env.example
+
+# AI session / local state
+.claude/sessions/
+.claude/cache/
+.claude/settings.local.json
+.aider*
+.cursor/
+
 # Dependencies
 node_modules/
 

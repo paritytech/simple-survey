@@ -23,9 +23,6 @@ npm run dev
 > playground)? Follow the step-by-step [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 
-
-
-
 ## Security
 
 See [SECURITY.md](./SECURITY.md) for how to report bugs or vulnerabilities.

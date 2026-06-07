@@ -1,0 +1,28 @@
+# cargo-deny configuration — licence policy for the Rust contract crates.
+# Outbound licence is GPL-3.0-only; the allow-list below are the permissive and
+# compatible inbound licences present in the dependency tree. Run:
+#   cargo deny check licenses
+
+[licenses]
+# Confidence threshold for detecting a licence from text (0.0–1.0).
+confidence-threshold = 0.8
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "CC0-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "LGPL-2.1-or-later",
+    "GPL-3.0-only",
+]
+
+[[licenses.exceptions]]
+# r-efi offers a permissive option (MIT/Apache) under its OR expression.
+name = "r-efi"
+allow = ["LGPL-2.1-or-later"]
